@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const rateLimit = require("express-rate-limit");
 const zxcvbn = require("zxcvbn");
 const crypto = require("crypto");
-const { findUserByEmail, updatePassword, setPasswordResetToken, getUserByResetToken, clearResetToken,getEmployeeByEmail, getAuthDetailsByEmployeeId, storeRefreshToken } = require("../models/UserModel");
+const { findUserByEmail, updatePassword, setPasswordResetToken, getUserByResetToken, clearResetToken,getEmployeeByEmail, getAuthDetailsByEmployeeId, storeRefreshToken,deleteRefreshToken } = require("../models/UserModel");
 const { jwtSecret, refreshTokenSecret } = require("../config/env");
 const sendEmail = require("../utils/emailService");
 
@@ -14,43 +14,58 @@ const loginLimiter = rateLimit({
 });
 
 const login = async (req, res) => {
-    const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
 
-    // 1️⃣ Fetch employee details
-    const employee = await getEmployeeByEmail(email);
-    if (!employee) {
-        return res.status(400).json({ message: "User not found" });
+        // 1️⃣ Fetch employee details
+        const employee = await getEmployeeByEmail(email);
+        if (!employee) {
+            return res.status(400).json({ message: "User not found" });
+        }
+
+        // 2️⃣ Get authentication details from `employee_auth`
+        const authDetails = await getAuthDetailsByEmployeeId(employee.id);
+        if (!authDetails) {
+            return res.status(400).json({ message: "Authentication details not found" });
+        }
+
+        // 3️⃣ Compare provided password with stored hashed password
+        const validPassword = await bcrypt.compare(password, authDetails.password_hash);
+        if (!validPassword) {
+            return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        // 4️⃣ Generate Tokens
+        const accessToken = jwt.sign(
+            { id: employee.id, role: employee.role },
+            jwtSecret,
+            { expiresIn: "15m" }
+        );
+
+        const refreshToken = jwt.sign(
+            { id: employee.id },
+            refreshTokenSecret,
+            { expiresIn: "7d" }
+        );
+
+        // 5️⃣ Store Refresh Token in the Database
+        await storeRefreshToken(employee.id, refreshToken);
+
+        // 6️⃣ Return tokens & user details
+        res.json({
+            accessToken,
+            refreshToken,
+            role: employee.role,
+            user: {
+                id: employee.id,
+                name: `${employee.first_name} ${employee.last_name}`,
+                role: employee.role
+            }
+        });
+    } catch (error) {
+        console.error("Login Error:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-
-    // 2️⃣ Get authentication details from `employee_auth`
-    const authDetails = await getAuthDetailsByEmployeeId(employee.id);
-    if (!authDetails) {
-        return res.status(400).json({ message: "Authentication details not found" });
-    }
-
-    // 3️⃣ Compare provided password with stored hashed password
-    const validPassword = await bcrypt.compare(password, authDetails.password_hash);
-    if (!validPassword) {
-        return res.status(400).json({ message: "Invalid password" });
-    }
-
-    // 4️⃣ Generate Tokens
-    const accessToken = jwt.sign(
-        { id: employee.id, role: employee.role },
-        jwtSecret,
-        { expiresIn: "15m" }
-    );
-console.log('refreshTokenSecret',refreshTokenSecret)
-    const refreshToken = jwt.sign(
-        { id: employee.id },
-        refreshTokenSecret,
-        { expiresIn: "7d" }
-    );
-
-    // 5️⃣ Store Refresh Token in the Database
-    await storeRefreshToken(employee.id, refreshToken);
-
-    res.json({ accessToken, refreshToken });
 };
 
 const forgotPassword = async (req, res) => {
@@ -84,4 +99,24 @@ const resetPassword = async (req, res) => {
     res.json({ message: "Password has been reset successfully" });
 };
 
-module.exports = { login, forgotPassword, resetPassword, loginLimiter };
+const logout = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+console.log('refreshToken',refreshToken);
+        if (!refreshToken) {
+            return res.status(400).json({ message: "Refresh token is required" });
+        }
+        // 🔹 Remove the refresh token from the database
+        const deleted = await deleteRefreshToken(refreshToken);
+
+        if (!deleted) {
+            return res.status(400).json({ message: "Invalid token or already logged out" });
+        }
+        res.status(200).json({ message: "Logged out successfully" });
+    } catch (error) {
+        console.error("Logout Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+module.exports = { login, logout, forgotPassword, resetPassword, loginLimiter};

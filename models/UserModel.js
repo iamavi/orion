@@ -54,6 +54,17 @@ const clearResetToken = async (email) => {
     return db("employees").where({ email }).update({ reset_token: null, reset_token_expires: null });
 };
 
+const deleteRefreshToken = async (refreshToken) => {
+    try {
+        const result = await db("sessions")
+            .where({ token_hash: refreshToken })
+            .del();
+        return result > 0; // Returns true if the token was deleted
+    } catch (error) {
+        console.error("Error deleting refresh token:", error);
+        return false;
+    }
+};
 
 // Store refresh token in the database
 const storeRefreshToken = async (employee_id, refreshToken) => {
@@ -76,6 +87,6 @@ module.exports = {
     getEmployeeByEmail,
     getAuthDetailsByEmployeeId,
     storeRefreshToken,
-
+    deleteRefreshToken
 };
 

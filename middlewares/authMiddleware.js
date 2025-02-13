@@ -1,19 +1,30 @@
 const jwt = require("jsonwebtoken");
-const { jwtSecret } = require("../config/env");
 
+// ✅ Middleware: Authenticate User
 const authenticate = (req, res, next) => {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-    console.log('tokensdkjsdjsdjk',token)
-    if (!token) return res.status(401).json({ message: "Access Denied" });
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+        return res.status(401).json({ error: "Unauthorized: No token provided" });
+    }
 
     try {
-        const verified = jwt.verify(token, jwtSecret);
-        console.log('kjasdjkadjsjdsa',verified)
-        req.user = verified;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded; // Store user data in request
         next();
-    } catch (err) {console.log('err',err)
-        res.status(400).json({ message: "Invalid or expired token" });
+    } catch (error) {
+        return res.status(401).json({ error: "Unauthorized: Invalid token" });
     }
 };
 
-module.exports = authenticate;
+// ✅ Middleware: Authorize Roles (Admin-Only Example)
+const authorizeRoles = (roles) => {
+    return (req, res, next) => {
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({ error: "Forbidden: You do not have permission" });
+        }
+        next();
+    };
+};
+
+module.exports = { authenticate, authorizeRoles };

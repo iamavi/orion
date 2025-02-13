@@ -6,7 +6,7 @@ const crypto = require("crypto");
 const { findUserByEmail, updatePassword, setPasswordResetToken, getUserByResetToken, clearResetToken,getEmployeeByEmail, getAuthDetailsByEmployeeId, storeRefreshToken,deleteRefreshToken } = require("../models/UserModel");
 const { jwtSecret, refreshTokenSecret } = require("../config/env");
 const sendEmail = require("../utils/emailService");
-
+const db = require("../config/db"); // Database connection
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5, // Max 5 login attempts per 15 minutes
@@ -56,6 +56,7 @@ const login = async (req, res) => {
             accessToken,
             refreshToken,
             role: employee.role,
+            mustChangePassword: authDetails.must_change_password, // ✅ Return flag
             user: {
                 id: employee.id,
                 name: `${employee.first_name} ${employee.last_name}`,
@@ -84,6 +85,42 @@ const forgotPassword = async (req, res) => {
     res.json({ message: "Password reset email sent" });
 };
 
+const changePassword = async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    console.log('asdcurrentPassword, newPasswordasd',currentPassword, newPassword)
+    const userId = req.user.id; // Extracted from JWT token
+
+    try {
+        // 1️⃣ Fetch authentication details
+        const authDetails = await db("employee_auth").where({ employee_id: userId }).first();
+        if (!authDetails) {
+            return res.status(400).json({ error: "Authentication details not found" });
+        }
+
+        // 2️⃣ Validate current password
+        const validPassword = await bcrypt.compare(currentPassword, authDetails.password_hash);
+        if (!validPassword) {
+            return res.status(400).json({ error: "Incorrect current password" });
+        }
+
+        // 3️⃣ Hash new password
+        const salt = bcrypt.genSaltSync(10);
+        const hashedPassword = bcrypt.hashSync(newPassword, salt);
+
+        // 4️⃣ Update password in database & remove `must_change_password` flag
+        await db("employee_auth")
+            .where({ employee_id: userId })
+            .update({ password_hash: hashedPassword, salt: salt, must_change_password: 0 });
+
+        return res.json({ message: "Password updated successfully!" });
+
+    } catch (error) {
+        console.error("Error changing password:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+
 const resetPassword = async (req, res) => {
     const { token, newPassword } = req.body;
 
@@ -102,7 +139,6 @@ const resetPassword = async (req, res) => {
 const logout = async (req, res) => {
     try {
         const { refreshToken } = req.body;
-console.log('refreshToken',refreshToken);
         if (!refreshToken) {
             return res.status(400).json({ message: "Refresh token is required" });
         }
@@ -119,4 +155,4 @@ console.log('refreshToken',refreshToken);
     }
 };
 
-module.exports = { login, logout, forgotPassword, resetPassword, loginLimiter};
+module.exports = { login, logout, forgotPassword, resetPassword, loginLimiter,changePassword};

@@ -13,7 +13,7 @@ const CreateUserModal = ({ onClose, employees = [] }) => {
     reporting_manager: "",
   });
 
-  const roles = ["admin", "manager", "employee"];
+  const roles = ["admin", "user"];
   const departments = ["HR", "Engineering", "Finance", "Marketing", "Sales"];
 
   const handleChange = (e) => {
@@ -24,7 +24,7 @@ const CreateUserModal = ({ onClose, employees = [] }) => {
     e.preventDefault();
 
     try {
-      await apiClient.post("/users", formData); // ✅ Uses centralized API client
+      await apiClient.post("/users/register", formData); // ✅ Uses centralized API client
       toast.success("User created successfully!");
       onClose();
     } catch (error) {

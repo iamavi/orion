@@ -9,36 +9,48 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false); // ✅ Define setLoading
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-  
-    try {
-      const response = await axios.post("http://localhost:5006/api/auth/login", {
-        email,
-        password,
-      });
-  
-      const { accessToken, refreshToken, role, user } = response.data;
-  
-      localStorage.setItem("token", accessToken);
-      localStorage.setItem("refreshToken", refreshToken);
-      localStorage.setItem("user", JSON.stringify(user));
-      toast.success("Login Successful!"); // ✅ Show success toast
+    setLoading(true); // ✅ Show loading indicator
 
-      if (role === "admin") {
-        navigate("/admin-dashboard"); // ✅ Redirects Admins here
-      } else {
-        navigate("/dashboard"); // ✅ Redirects Regular Users here
-      }
+    try {
+        const response = await axios.post("http://localhost:5006/api/auth/login", {
+            email,
+            password,
+        });
+
+        const { accessToken, refreshToken, role, user, mustChangePassword } = response.data;
+console.log('mustChangePasswordmustChangePassword',mustChangePassword)
+        // ✅ Store tokens securely
+        localStorage.setItem("token", accessToken);
+        localStorage.setItem("refreshToken", refreshToken);
+        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("role", role);
+        localStorage.setItem("mustChangePassword", mustChangePassword); // ✅ Store flag
+
+        toast.success("Login Successful!"); // ✅ Show success toast
+
+        // ✅ Redirect user based on `mustChangePassword`
+        if (mustChangePassword) {
+            navigate("/change-password"); // 🔒 Force password change for first-time login
+        } else if (role === "admin") {
+            navigate("/admin-dashboard"); // ✅ Redirects Admins
+        } else {
+            navigate("/dashboard"); // ✅ Redirects Regular Users
+        }
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Try again.");
-      toast.error("Login failed. Please check your credentials."); // ❌ Show error toast
+        const errorMessage = err.response?.data?.message || "Login failed. Please try again.";
+        setError(errorMessage);
+        toast.error(errorMessage); // ❌ Show error toast
+    } finally {
+        setLoading(false); // ✅ Hide loading indicator
     }
-  };
-  
+};
+
   
 
   return (
@@ -89,7 +101,10 @@ const Login = () => {
             <a href="/forgot-password" className="text-decoration-none">Forgot Password?</a>
           </div>
 
-          <button type="submit" className="btn btn-primary w-100">Login</button>
+
+          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+                    {loading ? "Logging in..." : "Login"}
+                </button>
         </form>
       </div>
     </div>

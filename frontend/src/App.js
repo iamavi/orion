@@ -11,6 +11,13 @@ import Settings from "./pages/Settings";
 import Users from "./pages/Users.js";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute"; // Import PublicRoute
+import ChangePassword from "./components/ChangePassword"; // ✅ Import Change Password Page
+
+const ProtectedRouteFirstLogin = ({ element }) => {
+  const mustChangePassword = JSON.parse(localStorage.getItem("mustChangePassword"));
+  if (mustChangePassword) return <Navigate to="/change-password" />;
+  return element;
+};
 const AdminRoute = ({ element }) => {
   const user = JSON.parse(localStorage.getItem("user"));
   return user && user.role === "admin" ? element : <Navigate to="/dashboard" replace />;
@@ -40,6 +47,7 @@ function App() {
         <Route path="/admin-dashboard" element={<AdminRoute element={<AdminDashboard />} />} />
         <Route path="/settings" element={<AdminRoute element={<Settings />} />} />
         <Route path="/users" element={<AdminRoute element={<Users />} />} />
+        <Route path="/change-password" element={<ChangePassword />} /> {/* ✅ Ensure this route exists */}
 
         {/* Catch-All Route for 404 - Redirect to Default Page */}
         <Route path="*" element={<NotFoundRedirect />} />

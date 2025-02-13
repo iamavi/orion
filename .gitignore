@@ -6,7 +6,8 @@ build/
 npm-debug.log*
 yarn-error.log
 package-lock.json
-
+frontend/node_modules/
+frontend/package-lock.json
 # Ignore logs and temporary files
 *.log
 *.tmp

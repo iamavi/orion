@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import apiClient from "../utils/apiClient"; 
+
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -32,8 +33,7 @@ const ForgotPassword = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post("http://localhost:5006/api/auth/forgot-password", { email });
-
+      const response = await apiClient.post("/api/auth/forgot-password", { email });
       if (response.status === 200) {
         setMessage("A reset link has been sent to your email.");
       } else {

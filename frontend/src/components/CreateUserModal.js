@@ -2,18 +2,18 @@ import React, { useState } from "react";
 import apiClient from "../utils/apiClient"; // ✅ Import centralized API handler
 import { toast } from "react-toastify";
 
-const CreateUserModal = ({ onClose, employees = [] }) => {
+const CreateUserModal = ({ onClose, employees = [], fetchUsers }) => {
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
     email: "",
-    role: "employee",
+    role: "user",
     phone: "",
     department: "",
     reporting_manager: "",
   });
-
-  const roles = ["admin", "user"];
+  const [loading, setLoading] = useState(false); // ✅ Define setLoading
+  const roles = [ "user","admin",];
   const departments = ["HR", "Engineering", "Finance", "Marketing", "Sales"];
 
   const handleChange = (e) => {
@@ -22,9 +22,10 @@ const CreateUserModal = ({ onClose, employees = [] }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setLoading(true); // ✅ Show loading indicator
     try {
       await apiClient.post("/users/register", formData); // ✅ Uses centralized API client
+      fetchUsers();  // ✅ Re-fetch the user list
       toast.success("User created successfully!");
       onClose();
     } catch (error) {
@@ -33,7 +34,9 @@ const CreateUserModal = ({ onClose, employees = [] }) => {
       } else {
         toast.error("Failed to create user.");
       }
-    }
+    }finally {
+      setLoading(false); // ✅ Hide loading indicator
+  }
   };
 
   return (
@@ -95,7 +98,9 @@ const CreateUserModal = ({ onClose, employees = [] }) => {
 
           <div className="d-flex justify-content-between mt-4">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Create User</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+                    {loading ? "Creating User..." : "Create User"}
+                </button>
           </div>
         </form>
       </div>

@@ -1,6 +1,6 @@
 const bcrypt = require("bcryptjs");
 const sendEmail = require("../utils/emailService");
-const db = require("../config/db"); // Database connection
+const {db} = require("../config/db"); // Database connection
 const crypto = require("crypto");
 
 // ✅ Create New User (Admin Only)

@@ -1,22 +1,19 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { Link } from "react-router-dom";
+import apiClient from "../utils/apiClient"; 
+
 import logo from "../assets/logo.png"; // App Logo
 
 const Layout = ({ children }) => {
-  const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user")) || { name: "User", role: "user" };
 
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      await axios.post("http://localhost:5006/api/auth/logout", { refreshToken });
-
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
+      await apiClient.post("auth/logout");
       localStorage.removeItem("user");
-
-      navigate("/");
+      localStorage.removeItem("role");
+      localStorage.removeItem("mustChangePassword");
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -54,7 +51,7 @@ const Layout = ({ children }) => {
         <nav className="navbar navbar-light bg-light px-4 shadow-sm">
           <span className="navbar-brand">{user.name}</span>
           <div>
-            <Link to="/reset-password" className="btn btn-sm btn-outline-primary me-2">
+            <Link to="/change-password" className="btn btn-sm btn-outline-primary me-2">
               Reset Password
             </Link>
             <button className="btn btn-sm btn-danger" onClick={handleLogout}>

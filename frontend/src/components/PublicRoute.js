@@ -1,7 +1,7 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 
-const PublicRoute = ({ element }) => {
+const PublicRoute = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   
   if (user) {
@@ -9,7 +9,7 @@ const PublicRoute = ({ element }) => {
     return <Navigate to={user.role === "admin" ? "/admin-dashboard" : "/dashboard"} replace />;
   }
   
-  return element; // Allow access to login page if no user is logged in
+  return <Outlet />; // ✅ Render child routes if no user is logged in
 };
 
 export default PublicRoute;

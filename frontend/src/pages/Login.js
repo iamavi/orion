@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import logo from "../assets/logo.png"; // Place your logo in `src/assets/logo.png`
 import { toast } from "react-toastify"; // Import toast
+import apiClient from "../utils/apiClient"; // ✅ Ensure CSRF Token is fetched
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -18,14 +18,12 @@ const Login = () => {
     setLoading(true); // ✅ Show loading indicator
 
     try {
-        const response = await axios.post("http://localhost:5006/api/auth/login", {
-            email,
-            password,
-        });
+
+        // ✅ Send login request with credentials
+        const response = await apiClient.post("/auth/login", { email, password });
 
         const { accessToken, refreshToken, role, user, mustChangePassword } = response.data;
-console.log('mustChangePasswordmustChangePassword',mustChangePassword)
-        // ✅ Store tokens securely
+        // ✅ Store tokens securely in sessionStorage
         localStorage.setItem("token", accessToken);
         localStorage.setItem("refreshToken", refreshToken);
         localStorage.setItem("user", JSON.stringify(user));
@@ -35,7 +33,7 @@ console.log('mustChangePasswordmustChangePassword',mustChangePassword)
         toast.success("Login Successful!"); // ✅ Show success toast
 
         // ✅ Redirect user based on `mustChangePassword`
-        if (mustChangePassword) {
+        if (mustChangePassword === 1) {
             navigate("/change-password"); // 🔒 Force password change for first-time login
         } else if (role === "admin") {
             navigate("/admin-dashboard"); // ✅ Redirects Admins
@@ -43,6 +41,7 @@ console.log('mustChangePasswordmustChangePassword',mustChangePassword)
             navigate("/dashboard"); // ✅ Redirects Regular Users
         }
     } catch (err) {
+        console.error("Login Error:", err.response?.data || err); // ✅ Debugging
         const errorMessage = err.response?.data?.message || "Login failed. Please try again.";
         setError(errorMessage);
         toast.error(errorMessage); // ❌ Show error toast
@@ -50,7 +49,6 @@ console.log('mustChangePasswordmustChangePassword',mustChangePassword)
         setLoading(false); // ✅ Hide loading indicator
     }
 };
-
   
 
   return (

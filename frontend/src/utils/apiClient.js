@@ -1,35 +1,24 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
-// Create Axios instance with a base URL
+// ✅ Create Axios instance
 const apiClient = axios.create({
   baseURL: "http://localhost:5006/api",
   headers: { "Content-Type": "application/json" },
+  withCredentials: true, // ✅ Ensures cookies (JWT + CSRF) are sent automatically
 });
 
-// Flag to prevent multiple token refresh attempts
+// ✅ Flag to prevent multiple token refresh attempts
 let isRefreshing = false;
 let refreshSubscribers = [];
 
-// Add request interceptor to attach JWT token
-apiClient.interceptors.request.use(
-  async (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Function to handle failed requests while refreshing token
+// ✅ Function to execute all pending requests after token refresh
 const onRefreshed = (token) => {
   refreshSubscribers.forEach((callback) => callback(token));
   refreshSubscribers = [];
 };
 
-// Add response interceptor to handle token expiration
+// ✅ Add response interceptor to handle token expiration & auto-refresh
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -41,27 +30,17 @@ apiClient.interceptors.response.use(
       if (!isRefreshing) {
         isRefreshing = true;
         try {
-          const refreshToken = localStorage.getItem("refreshToken");
-          if (!refreshToken) throw new Error("No refresh token available");
-
-          const response = await axios.post("http://localhost:5006/api/auth/refresh-token", {
-            refreshToken,
-          });
-
-          const { accessToken, refreshToken: newRefreshToken } = response.data;
-
-          // ✅ Store new tokens
-          localStorage.setItem("token", accessToken);
-          localStorage.setItem("refreshToken", newRefreshToken);
-
+          // ✅ Send request to refresh token using cookies
+          const response = await apiClient.post("/auth/refresh-token");
           isRefreshing = false;
-          onRefreshed(accessToken);
+          onRefreshed(response.data.accessToken);
         } catch (refreshError) {
           isRefreshing = false;
           logoutUser();
         }
       }
 
+      // ✅ Queue failed requests until refresh is complete
       return new Promise((resolve) => {
         refreshSubscribers.push((token) => {
           originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -74,13 +53,31 @@ apiClient.interceptors.response.use(
   }
 );
 
-// ✅ Logout function to clear storage & redirect
-const logoutUser = () => {
-  toast.error("Session expired. Please log in again.");
-  localStorage.removeItem("token");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("user");
-  window.location.href = "/"; // Redirect to login page
+// ✅ Auto-fetch CSRF token for added security
+const fetchCsrfToken = async () => {
+  try {
+    const response = await apiClient.get("/csrf-token");
+    apiClient.defaults.headers.common["X-CSRF-Token"] = response.data.csrfToken;
+    console.log("CSRF Token Set:", response.data.csrfToken); // ✅ Debugging
+  } catch (error) {
+    console.error("Failed to fetch CSRF token:", error);
+  }
 };
 
+// ✅ Logout function to clear session & redirect
+const logoutUser = async () => {
+  try {
+    await apiClient.post("/auth/logout");
+  } catch (error) {
+    console.error("Logout failed:", error);
+  }
+  toast.error("Session expired. Please log in again.");
+  localStorage.removeItem("user");
+  window.location.href = "/";
+};
+
+// ✅ Call CSRF fetch on app start
+fetchCsrfToken();
+
+export { fetchCsrfToken, logoutUser };
 export default apiClient;

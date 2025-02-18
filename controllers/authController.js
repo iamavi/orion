@@ -6,13 +6,17 @@ const crypto = require("crypto");
 const { findUserByEmail, updatePassword, setPasswordResetToken, getUserByResetToken, clearResetToken,getEmployeeByEmail, getAuthDetailsByEmployeeId, storeRefreshToken,deleteRefreshToken } = require("../models/UserModel");
 const { jwtSecret, refreshTokenSecret } = require("../config/env");
 const sendEmail = require("../utils/emailService");
-const db = require("../config/db"); // Database connection
+const {db} = require("../config/db"); // Database connection
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5, // Max 5 login attempts per 15 minutes
     message: "Too many login attempts. Please try again later.",
 });
-
+const forgotPasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 3, // Max 3 requests per window
+    message: "Too many password reset requests. Please try again later."
+});
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -52,9 +56,10 @@ const login = async (req, res) => {
         await storeRefreshToken(employee.id, refreshToken);
 
         // 6️⃣ Return tokens & user details
+        // ✅ Send Tokens as HTTP-Only Cookies
+        res.cookie("accessToken", accessToken, { httpOnly: true, secure: true, sameSite: "Strict", maxAge: 15 * 60 * 1000 });
+        res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "Strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
         res.json({
-            accessToken,
-            refreshToken,
             role: employee.role,
             mustChangePassword: authDetails.must_change_password, // ✅ Return flag
             user: {
@@ -69,21 +74,95 @@ const login = async (req, res) => {
     }
 };
 
+const logout = async (req, res) => {console.log('asdjkjsdkjk')
+    try {
+        const refreshToken  = req.cookies.refreshToken;
+        if (!refreshToken) {
+            return res.status(400).json({ message: "Refresh token is required" });
+        }
+        // 🔹 Remove the refresh token from the database
+        const deleted = await deleteRefreshToken(refreshToken);
+
+        if (!deleted) {
+            return res.status(400).json({ message: "Invalid token or already logged out" });
+        }
+        res.clearCookie("accessToken");
+        res.clearCookie("refreshToken");
+        res.status(200).json({ message: "Logged out successfully" });
+    } catch (error) {
+        console.error("Logout Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
-    const user = await findUserByEmail(email);
-    if (!user) return res.status(400).json({ message: "User not found" });
+    try {
+        // 1️⃣ Find the user
+        const user = await db("employees").where({ email }).first();
+        if (!user) return res.status(400).json({ message: "User not found" });
 
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const resetToken = crypto.createHash("sha256").update(rawToken).digest("hex");
-    await setPasswordResetToken(email, resetToken);
+        // 2️⃣ Generate secure reset token
+        const rawToken = crypto.randomBytes(32).toString("hex");
+        const resetToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
 
-    const resetLink = `http://localhost:3000/reset-password/${rawToken}`;
-    await sendEmail(email, "Password Reset", `Click the following link to reset your password: ${resetLink}`);
+        // 3️⃣ Store hashed token in the database
+        await db("employee_auth").where({ employee_id: user.id }).update({
+            reset_token: resetToken,
+            reset_token_expires: expiresAt
+        });
 
-    res.json({ message: "Password reset email sent" });
+        // 4️⃣ Generate Reset Link
+        const resetLink = `http://localhost:3000/reset-password/${rawToken}`;
+        const emailBody = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px;">
+            <h2 style="color: #333; text-align: center;">Password Reset Request</h2>
+            <p>Hello <strong>${user.first_name}</strong>,</p>
+            <p>We received a request to reset your password. Click the button below to proceed:</p>
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="${resetLink}" 
+                    style="display: inline-block; padding: 12px 20px; color: #fff; background-color: #007BFF; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    Reset Password
+                </a>
+            </div>
+            <p style="color: #777;">This link is valid for <strong>5 minutes</strong>. If you didn’t request this, please ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #ddd;">
+            <p style="text-align: center; color: #555;">Best regards, <br><strong>Xumane Team</strong></p>
+        </div>
+    `;
+    
+    // Send the email
+    await sendEmail(email, "Password Reset Request", emailBody);
+    res.json({ message: "Password reset email sent successfully" });
+
+    } catch (error) {
+        console.error("Error in forgotPassword:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };
+const validateResetToken = async (req, res) => {
+    const { token } = req.params;
+
+    try {
+        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+        const user = await db("employee_auth")
+            .where({ reset_token: hashedToken })
+            .andWhere("reset_token_expires", ">", new Date())
+            .first();
+
+        if (!user) return res.status(400).json({ message: "Invalid or expired reset token" });
+
+        res.json({ message: "Valid token", employee_id: user.employee_id });
+
+    } catch (error) {
+        console.error("Error in validateResetToken:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 
 const changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
@@ -136,23 +215,22 @@ const resetPassword = async (req, res) => {
     res.json({ message: "Password has been reset successfully" });
 };
 
-const logout = async (req, res) => {
-    try {
-        const { refreshToken } = req.body;
-        if (!refreshToken) {
-            return res.status(400).json({ message: "Refresh token is required" });
-        }
-        // 🔹 Remove the refresh token from the database
-        const deleted = await deleteRefreshToken(refreshToken);
+const refreshAccessToken = async (req, res) => {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) return res.status(401).json({ message: "Unauthorized" });
 
-        if (!deleted) {
-            return res.status(400).json({ message: "Invalid token or already logged out" });
-        }
-        res.status(200).json({ message: "Logged out successfully" });
-    } catch (error) {
-        console.error("Logout Error:", error);
-        res.status(500).json({ message: "Internal server error" });
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
+        const user = await findUserById(decoded.id);
+        if (!user) return res.status(401).json({ message: "Invalid token" });
+
+        const newAccessToken = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "15m" });
+
+        res.cookie("accessToken", newAccessToken, { httpOnly: true, secure: true, sameSite: "Strict", maxAge: 15 * 60 * 1000 });
+        res.json({ accessToken: newAccessToken });
+    } catch (err) {
+        return res.status(403).json({ message: "Invalid or expired token" });
     }
 };
 
-module.exports = { login, logout, forgotPassword, resetPassword, loginLimiter,changePassword};
+module.exports = { login, logout, forgotPassword, resetPassword, loginLimiter,forgotPasswordLimiter,changePassword, validateResetToken,refreshAccessToken};

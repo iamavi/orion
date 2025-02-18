@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="1" failures="1" errors="0" time="0.531">
+  <testsuite name="🚀 Server Initialization Tests" errors="0" failures="1" skipped="0" timestamp="2025-02-13T09:52:11" time="0.473" tests="1">
+    <testcase classname="🚀 Server Initialization Tests ✅ API Health Check" name="🚀 Server Initialization Tests ✅ API Health Check" time="0">
+      <failure>TypeError: app.address is not a function
+    at Test.serverAddress (/Users/avinashgautam/Documents/Projects/Orion/orion/node_modules/supertest/lib/test.js:46:22)
+    at new Test (/Users/avinashgautam/Documents/Projects/Orion/orion/node_modules/supertest/lib/test.js:34:14)
+    at Object.get (/Users/avinashgautam/Documents/Projects/Orion/orion/node_modules/supertest/index.js:43:18)
+    at Object.&lt;anonymous&gt; (/Users/avinashgautam/Documents/Projects/Orion/orion/tests/unit/server.test.js:6:41)
+    at Promise.then.completed (/Users/avinashgautam/Documents/Projects/Orion/orion/node_modules/jest-circus/build/utils.js:391:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/Users/avinashgautam/Documents/Projects/Orion/orion/node_modules/jest-circus/build/utils.js:316:10)
+    at _callCircusTest (/Users/avinashgautam/Documents/Projects/Orion/orion/node_modules/jest-circus/build/run.js:218:40)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at _runTest (/Users/avinashgautam/Documents/Projects/Orion/orion/node_modules/jest-circus/build/run.js:155:3)</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

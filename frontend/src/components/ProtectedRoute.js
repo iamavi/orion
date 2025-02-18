@@ -1,10 +1,14 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 
-const ProtectedRoute = ({ element }) => {
+const ProtectedRoute = () => {
   const token = localStorage.getItem("token"); // Check if user is logged in
 
-  return token ? element : <Navigate to="/" replace />;
+  if (!token) {
+    return <Navigate to="/" replace />; // Redirect to login if no token is found
+  }
+
+  return <Outlet />; // ✅ Render protected content
 };
 
 export default ProtectedRoute;

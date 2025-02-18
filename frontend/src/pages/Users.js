@@ -103,7 +103,7 @@ const UserManagement = () => {
       )}
 
       {/* Create User Modal */}
-      {showCreateModal && <CreateUserModal onClose={() => setShowCreateModal(false)} employees={users} />}
+      {showCreateModal && <CreateUserModal onClose={() => setShowCreateModal(false)} employees={users} fetchUsers={fetchUsers} />}
     </Layout>
   );
 };

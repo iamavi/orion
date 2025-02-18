@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Route, Routes,Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Login from "./pages/Login";
@@ -10,46 +10,44 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users.js";
 import ProtectedRoute from "./components/ProtectedRoute";
-import PublicRoute from "./components/PublicRoute"; // Import PublicRoute
-import ChangePassword from "./components/ChangePassword"; // ✅ Import Change Password Page
-
-const ProtectedRouteFirstLogin = ({ element }) => {
-  const mustChangePassword = JSON.parse(localStorage.getItem("mustChangePassword"));
-  if (mustChangePassword) return <Navigate to="/change-password" />;
-  return element;
-};
-const AdminRoute = ({ element }) => {
-  const user = JSON.parse(localStorage.getItem("user"));
-  return user && user.role === "admin" ? element : <Navigate to="/dashboard" replace />;
-};
+import AdminRoute from "./components/AdminRoute"; 
+import PublicRoute from "./components/PublicRoute";
+import ChangePassword from "./components/ChangePassword"; 
 
 const NotFoundRedirect = () => {
   const user = JSON.parse(localStorage.getItem("user"));
-
   if (user) {
     return <Navigate to={user.role === "admin" ? "/admin-dashboard" : "/dashboard"} replace />;
   }
   return <Navigate to="/" replace />;
 };
+
 function App() {
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={2000} />
       <Routes>
-        {/* ✅ Prevent logged-in users from accessing Login */}
-        <Route path="/" element={<PublicRoute element={<Login />} />} />
+        {/* ✅ Public Routes (Login & Password Recovery) */}
+        <Route element={<PublicRoute />}>
+          <Route path="/" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+        </Route>
 
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
+{/* ✅ Protected Routes (Only for Logged-in Users) */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+        </Route>
 
-        {/* Protected Routes */}
-        <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
-        <Route path="/admin-dashboard" element={<AdminRoute element={<AdminDashboard />} />} />
-        <Route path="/settings" element={<AdminRoute element={<Settings />} />} />
-        <Route path="/users" element={<AdminRoute element={<Users />} />} />
-        <Route path="/change-password" element={<ChangePassword />} /> {/* ✅ Ensure this route exists */}
+        {/* ✅ Admin Routes */}
+        <Route element={<AdminRoute />}>
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/users" element={<Users />} />
+        </Route>
 
-        {/* Catch-All Route for 404 - Redirect to Default Page */}
+        {/* ✅ Catch-All Route for 404 */}
         <Route path="*" element={<NotFoundRedirect />} />
       </Routes>
     </Router>

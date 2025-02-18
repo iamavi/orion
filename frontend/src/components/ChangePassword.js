@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import apiClient from "../utils/apiClient"; // ✅ Use apiClient for API calls
 
 const ChangePassword = () => {
     const [currentPassword, setCurrentPassword] = useState("");
@@ -12,6 +12,7 @@ const ChangePassword = () => {
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
 
+    // ✅ Password validation function
     const validatePassword = (password) => {
         const minLength = 8;
         const hasUpperCase = /[A-Z]/.test(password);
@@ -27,6 +28,7 @@ const ChangePassword = () => {
         return "";
     };
 
+    // ✅ Handle password update
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
@@ -44,16 +46,10 @@ const ChangePassword = () => {
 
         try {
             setLoading(true);
-            const token = localStorage.getItem("token");
-
-            await axios.post(
-                "http://localhost:5006/api/auth/change-password",
-                { currentPassword, newPassword },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            await apiClient.post("/auth/change-password", { currentPassword, newPassword });
 
             toast.success("Password changed successfully! 🎉");
-            localStorage.setItem("mustChangePassword", false); // ✅ Reset flag
+            sessionStorage.setItem("mustChangePassword", false); // ✅ Reset flag
             navigate("/dashboard");
         } catch (err) {
             setError(err.response?.data?.error || "Failed to update password. Please try again.");

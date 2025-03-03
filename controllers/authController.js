@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const rateLimit = require("express-rate-limit");
 const zxcvbn = require("zxcvbn");
 const crypto = require("crypto");
-const { findUserByEmail, updatePassword, setPasswordResetToken, getUserByResetToken, clearResetToken,getEmployeeByEmail, getAuthDetailsByEmployeeId, storeRefreshToken,deleteRefreshToken } = require("../models/UserModel");
+const { findUserByEmail, updatePassword, setPasswordResetToken, getUserByResetToken, clearResetToken,getEmployeeByEmail, getAuthDetailsByEmployeeId, storeRefreshToken,deleteRefreshToken,logLoginAttempt } = require("../models/UserModel");
 const { jwtSecret, refreshTokenSecret } = require("../config/env");
 const sendEmail = require("../utils/emailService");
 const {db} = require("../config/db"); // Database connection
@@ -17,25 +17,46 @@ const forgotPasswordLimiter = rateLimit({
     max: 3, // Max 3 requests per window
     message: "Too many password reset requests. Please try again later."
 });
+
+
 const login = async (req, res) => {
+    const trx = await db.transaction(); // 🔹 Start a transaction
     try {
         const { email, password } = req.body;
+
+        // Capture request details
+        const ipAddress = req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+        const userAgent = req.headers["user-agent"] || "Unknown";
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        // Parse user agent details
+        const parser = require("ua-parser-js");
+        const ua = parser(userAgent);
+        const browser = ua.browser.name || "Unknown";
+        const os = ua.os.name || "Unknown";
+        const deviceType = ua.device.type || "Desktop";
 
         // 1️⃣ Fetch employee details
         const employee = await getEmployeeByEmail(email);
         if (!employee) {
-            return res.status(400).json({ message: "User not found" });
+            await logLoginAttempt(trx, null, ipAddress, browser, os, deviceType, timezone, "failed", "User not found");
+            await trx.commit(); // ✅ Commit only the failed login attempt
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        // 2️⃣ Get authentication details from `employee_auth`
+        // 2️⃣ Get authentication details
         const authDetails = await getAuthDetailsByEmployeeId(employee.id);
         if (!authDetails) {
+            await logLoginAttempt(trx, employee.id, ipAddress, browser, os, deviceType, timezone, "failed", "Authentication details not found");
+            await trx.commit(); // ✅ Commit only the failed login attempt
             return res.status(400).json({ message: "Authentication details not found" });
         }
 
         // 3️⃣ Compare provided password with stored hashed password
         const validPassword = await bcrypt.compare(password, authDetails.password_hash);
         if (!validPassword) {
+            await logLoginAttempt(trx, employee.id, ipAddress, browser, os, deviceType, timezone, "failed", "Invalid password");
+            await trx.commit(); // ✅ Commit only the failed login attempt
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
@@ -52,23 +73,31 @@ const login = async (req, res) => {
             { expiresIn: "7d" }
         );
 
-        // 5️⃣ Store Refresh Token in the Database
-        await storeRefreshToken(employee.id, refreshToken);
+        // 5️⃣ Store Session Data (inside transaction)
+        await storeRefreshToken(trx, employee.id, refreshToken, ipAddress, browser, os, deviceType, timezone);
 
-        // 6️⃣ Return tokens & user details
-        // ✅ Send Tokens as HTTP-Only Cookies
+        // ✅ Log Successful Login
+        await logLoginAttempt(trx, employee.id, ipAddress, browser, os, deviceType, timezone, "success", null);
+
+        // 6️⃣ Commit Transaction (all successful steps)
+        await trx.commit();
+
+        // 7️⃣ Send Tokens as HTTP-Only Cookies
         res.cookie("accessToken", accessToken, { httpOnly: true, secure: true, sameSite: "Strict", maxAge: 15 * 60 * 1000 });
         res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "Strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
+
         res.json({
             role: employee.role,
-            mustChangePassword: authDetails.must_change_password, // ✅ Return flag
+            mustChangePassword: authDetails.must_change_password,
             user: {
                 id: employee.id,
                 name: `${employee.first_name} ${employee.last_name}`,
                 role: employee.role
             }
         });
+
     } catch (error) {
+        await trx.rollback(); // ❌ Rollback transaction on failure
         console.error("Login Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
@@ -202,11 +231,12 @@ const changePassword = async (req, res) => {
 
 const resetPassword = async (req, res) => {
     const { token, newPassword } = req.body;
-
+console.log(token,newPassword,'askdjjk')
     if (zxcvbn(newPassword).score < 3) return res.status(400).json({ message: "Weak password" });
 
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-    const user = await getUserByResetToken(hashedToken);
+    console.log('hashedtoken',hashedToken)
+    const user = await getUserByResetToken(hashedToken);console.log(user)
     if (!user) return res.status(400).json({ message: "Invalid or expired token" });
 
     await updatePassword(user.email, newPassword);

@@ -1,11 +1,11 @@
 import React from "react";
-import Layout from "../components/Layout"; // ✅ Fix the path
+import Layout from "../components/Layout"; // ✅ Ensure correct path
+import EmployeeHomeScreen from "../components/EmployeeHomeScreen"; // ✅ Import the Employee Home Screen
 
 const Dashboard = () => {
   return (
     <Layout>
-      <h2>Dashboard</h2>
-      <p>This is the user dashboard.</p>
+      <EmployeeHomeScreen />
     </Layout>
   );
 };

@@ -66,17 +66,51 @@ const deleteRefreshToken = async (refreshToken) => {
     }
 };
 
-// Store refresh token in the database
-const storeRefreshToken = async (employee_id, refreshToken) => {
+// // Store refresh token in the database
+// const storeRefreshToken = async (employee_id, refreshToken) => {
+//     const expiresAt = new Date();
+//     expiresAt.setDate(expiresAt.getDate() + 7); // Refresh token expires in 7 days
+
+//     return db("sessions")
+//         .insert({ employee_id, token_hash: refreshToken, is_active: 1, expires_at: expiresAt })
+//         .onConflict("employee_id")
+//         .merge(); // Updates token if user logs in again
+// };
+
+const storeRefreshToken = async (trx, employee_id, refreshToken, ip_address, browser, os, device_type, timezone) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // Refresh token expires in 7 days
 
-    return db("sessions")
-        .insert({ employee_id, token_hash: refreshToken, is_active: 1, expires_at: expiresAt })
+    return trx("sessions")
+        .insert({
+            employee_id,
+            token_hash: refreshToken,
+            is_active: 1,
+            expires_at: expiresAt,
+            ip_address,
+            browser,
+            os,
+            device_type,
+            created_at: new Date(),
+            last_active_at: new Date(),
+            timezone
+        })
         .onConflict("employee_id")
         .merge(); // Updates token if user logs in again
 };
-
+const logLoginAttempt = async (trx, employee_id, ip_address, browser, os, device_type, timezone, status, failure_reason) => {
+    return trx("login_logs").insert({
+        employee_id,
+        login_time: new Date(),
+        ip_address,
+        browser,
+        os,
+        device_type,
+        timezone,
+        status,
+        failure_reason: failure_reason ? JSON.stringify({ reason: failure_reason }) : null
+    });
+};
 module.exports = {
     createUser,
     findUserByEmail,
@@ -87,6 +121,7 @@ module.exports = {
     getEmployeeByEmail,
     getAuthDetailsByEmployeeId,
     storeRefreshToken,
-    deleteRefreshToken
+    deleteRefreshToken,
+    logLoginAttempt
 };
 

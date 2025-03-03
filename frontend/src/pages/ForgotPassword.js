@@ -33,7 +33,7 @@ const ForgotPassword = () => {
     setLoading(true);
     
     try {
-      const response = await apiClient.post("/api/auth/forgot-password", { email });
+      const response = await apiClient.post("auth/forgot-password", { email });
       if (response.status === 200) {
         setMessage("A reset link has been sent to your email.");
       } else {

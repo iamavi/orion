@@ -30,11 +30,11 @@ const findUserByEmail = async (email) => {
     return db("employees").where({ email }).first();
 };
 
-const updatePassword = async (email, newPassword) => {
+const updatePassword = async (employee_id, newPassword) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    return db("employees").where({ email }).update({ password_hash: hashedPassword });
+    return db("employee_auth").where({ employee_id }).update({ password_hash: hashedPassword });
 };
 
 const setPasswordResetToken = async (email, employee_id) => {
@@ -50,8 +50,8 @@ const getUserByResetToken = async (token) => {
     return db("employee_auth").where({ reset_token: token }).andWhere("reset_token_expires", ">", new Date()).first();
 };
 
-const clearResetToken = async (email) => {
-    return db("employee_auth").where({ email }).update({ reset_token: null, reset_token_expires: null });
+const clearResetToken = async (employee_id) => {
+    return db("employee_auth").where({ employee_id }).update({ reset_token: null, reset_token_expires: null });
 };
 
 const deleteRefreshToken = async (refreshToken) => {

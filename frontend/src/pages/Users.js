@@ -75,14 +75,15 @@ const UserManagement = () => {
 
       {/* Reusable Table Component */}
       <TableComponent
-        columns={["Name", "Email", "Role", "Department", "Created Date", "Actions"]}
+        columns={["Name", "Email", "Role", "Manager", "Department", "Created Date", "Actions"]}
         data={users
           .filter((user) => (activeTab === "active" ? user.status === "active" : user.status === "inactive"))
           .map((user) => ({
             Name: `${user.first_name} ${user.last_name}`,
             Email: user.email,
             Role: user.role,
-            Department: user.department,
+            Department: user.department_name,
+            Manager: user.manager_name,
             "Created Date": new Date(user.created_at).toLocaleDateString(),
             Actions: isAdmin ? ( // ✅ Hide actions for non-admins
               <>

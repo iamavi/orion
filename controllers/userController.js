@@ -71,7 +71,22 @@ const createUser = async (req, res) => {
 // ✅ Fetch All Users (Admin Only)
 const getAllUsers = async (req, res) => {
     try {
-        const users = await db("employees").select("id", "first_name", "last_name", "email", "role", "department", "status", "created_at");
+        const users = await db("employees")
+            .select(
+                "employees.id",
+                "employees.first_name",
+                "employees.last_name",
+                "employees.email",
+                "employees.role",
+                "employees.reporting_manager",
+                "employees.department",
+                "employees.status",
+                "employees.created_at",
+                "departments.name as department_name",
+                db.raw("CONCAT(manager.first_name, ' ', manager.last_name) as manager_name")
+            )
+            .leftJoin("departments", "employees.department", "departments.id")
+            .leftJoin("employees as manager", "employees.reporting_manager", "manager.id");
 
         res.status(200).json(users);
     } catch (error) {

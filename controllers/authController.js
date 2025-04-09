@@ -239,8 +239,8 @@ console.log(token,newPassword,'askdjjk')
     const user = await getUserByResetToken(hashedToken);console.log(user)
     if (!user) return res.status(400).json({ message: "Invalid or expired token" });
 
-    await updatePassword(user.email, newPassword);
-    await clearResetToken(user.email);
+    await updatePassword(user.employee_id, newPassword);
+    await clearResetToken(user.employee_id);
 
     res.json({ message: "Password has been reset successfully" });
 };

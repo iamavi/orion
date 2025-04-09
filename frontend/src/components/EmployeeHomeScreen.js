@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Form, Button, Card, Container, Row, Col, Alert, Modal, Table } from "react-bootstrap";
+import { Form, Button, Card, Container, Row, Col, Modal } from "react-bootstrap";
 import { useApi } from "../hooks/useApi";
 
 const EmployeeHomeScreen = () => {
@@ -99,7 +99,7 @@ const EmployeeHomeScreen = () => {
               <Form.Label>Task Details</Form.Label>
               <Form.Control as="textarea" name="details" onChange={handleTaskFormChange} />
             </Form.Group>
-            {Object.keys(dropdownOptions).map((key) => (
+            {/* {Object.keys(dropdownOptions).map((key) => (
               <Form.Group key={key}>
                 <Form.Label>{key}</Form.Label>
                 <Form.Select name={key} onChange={handleTaskFormChange}>
@@ -109,7 +109,7 @@ const EmployeeHomeScreen = () => {
                   ))}
                 </Form.Select>
               </Form.Group>
-            ))}
+            ))} */}
             <Form.Group>
               <Form.Label>Hours Spent</Form.Label>
               <Form.Control type="number" name="hoursSpent" onChange={handleTaskFormChange} />

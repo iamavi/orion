@@ -26,9 +26,9 @@ const Layout = ({ children }) => {
         <div className="text-center mb-4">
           <img src={logo} alt="App Logo" width="120" />
         </div>
-        <ul className="nav flex-column">
+        <ul className="nav flex-column"> 
           <li className="nav-item">
-            <Link className="nav-link text-white" to="/dashboard">🏠 Home</Link>
+            <Link className="nav-link text-white" to="/user-dashboard">🏠 Home</Link>
           </li>
           <li className="nav-item">
             <Link className="nav-link text-white" to="/dashboard">📊 Dashboard</Link>

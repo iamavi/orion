@@ -5,11 +5,16 @@ import apiClient from "../utils/apiClient";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import CreateUserModal from "../components/CreateUserModal";
+import DeactivateUserModal from "../components/DeactivateUserModal";
+import EditUserModal from "../components/EditUserModal";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [activeTab, setActiveTab] = useState("active");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   // Get user role from localStorage
   const user = JSON.parse(localStorage.getItem("user"));
@@ -52,6 +57,29 @@ const UserManagement = () => {
     XLSX.writeFile(workbook, "UserList.xlsx");
   };
 
+  const handleDeactivateClick = (user) => {
+    setSelectedUser(user);
+    setShowDeactivateModal(true);
+  };
+
+  const handleDeactivateUser = async (lastWorkingDate, reason) => {
+    try {
+      await apiClient.post(`/users/${selectedUser.id}/deactivate`, {
+        lastWorkingDate,
+        reason,
+      });
+      toast.success("User deactivated successfully.");
+      fetchUsers();
+    } catch (error) {
+      toast.error("Failed to deactivate user.");
+    }
+  };
+
+  const handleEditClick = (user) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
+
   return (
     <Layout>
       <h2>User Management</h2>
@@ -85,10 +113,10 @@ const UserManagement = () => {
             Department: user.department_name,
             Manager: user.manager_name,
             "Created Date": new Date(user.created_at).toLocaleDateString(),
-            Actions: isAdmin ? ( // ✅ Hide actions for non-admins
+            Actions: isAdmin ? (
               <>
-                <button className="btn btn-sm btn-warning me-2">✏️ Edit</button>
-                <button className="btn btn-sm btn-danger">🚫 Deactivate</button>
+                <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(user)}>✏️ Edit</button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDeactivateClick(user)}>🚫 Deactivate</button>
               </>
             ) : (
               "🔒 Restricted"
@@ -105,6 +133,26 @@ const UserManagement = () => {
 
       {/* Create User Modal */}
       {showCreateModal && <CreateUserModal onClose={() => setShowCreateModal(false)} employees={users} fetchUsers={fetchUsers} />}
+
+      {/* Deactivate User Modal */}
+      {showDeactivateModal && (
+        <DeactivateUserModal
+          show={showDeactivateModal}
+          onClose={() => setShowDeactivateModal(false)}
+          onDeactivate={handleDeactivateUser}
+        />
+      )}
+
+      {/* Edit User Modal */}
+      {showEditModal && (
+        <EditUserModal
+          show={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          user={selectedUser}
+          employees={users}
+          fetchUsers={fetchUsers}
+        />
+      )}
     </Layout>
   );
 };
